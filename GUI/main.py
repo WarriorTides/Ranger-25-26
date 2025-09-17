@@ -51,14 +51,11 @@ class MainWindow(QMainWindow):
 
         label = label_map.get(cam_id)
         if label:
-            # Option 1: With setScaledContents(True), just set the pixmap directly
-            # It will automatically scale to fill the entire label
             label.setPixmap(pix)
             
-            # Option 2: If you want more control, manually scale to label's current size
-            # scaled_pix = pix.scaled(
+                 # scaled_pix = pix.scaled(
             #     label.size(),
-            #     Qt.AspectRatioMode.IgnoreAspectRatio,  # This will stretch to fill completely
+            #     Qt.AspectRatioMode.IgnoreAspectRatio, 
             #     Qt.TransformationMode.SmoothTransformation
             # )
             # label.setPixmap(scaled_pix)
