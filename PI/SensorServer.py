@@ -1,4 +1,3 @@
-# SensorServer.py
 import asyncio
 import websockets
 import json
@@ -16,7 +15,7 @@ async def sensor_handler(websocket, path):
             if data:
                 message = json.dumps(data)
                 await websocket.send(message)
-            await asyncio.sleep(0.05)  # 20 Hz
+            await asyncio.sleep(0.05) 
     except websockets.ConnectionClosed:
         pass
     finally:

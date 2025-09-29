@@ -4,8 +4,8 @@ import json
 import base64
 import time
 
-PC_IP = "<PC_IP>"  # replace 
-PORTS = [5005, 5006, 5007]  # one port per camera
+PC_IP = "<PC_IP>"  
+PORTS = [5005, 5006, 5007]  
 
 sockets = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in PORTS]
 

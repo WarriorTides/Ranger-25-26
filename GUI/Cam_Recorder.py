@@ -1,0 +1,40 @@
+import cv2
+import os
+from datetime import datetime
+
+
+class CameraRecorder:
+    def __init__(self, fps=20, frame_size=(640, 480)):
+        self.fps = fps
+        self.frame_size = frame_size
+        self.writer = None
+        self.recording = False
+        downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+        os.makedirs(downloads, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.save_path = os.path.join(
+            downloads, f"rov_recording_{timestamp}.mp4")
+
+    def start_recording(self):
+        if not self.recording:
+            self.writer = cv2.VideoWriter(
+                self.save_path,
+                cv2.VideoWriter_fourcc(*"mp4v"),
+                self.fps,
+                self.frame_size
+            )
+            self.recording = True
+            print(f"Recording started: {self.save_path}")
+
+    def write_frame(self, frame):
+        if self.recording and self.writer is not None:
+            if frame.shape[1] != self.frame_size[0] or frame.shape[0] != self.frame_size[1]:
+                frame = cv2.resize(frame, self.frame_size)
+            self.writer.write(frame)
+
+    def stop_recording(self):
+        if self.recording:
+            self.writer.release()
+            self.writer = None
+            self.recording = False
+            print(f"Recording stopped. Video saved to: {self.save_path}")
