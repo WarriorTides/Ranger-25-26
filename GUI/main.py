@@ -18,7 +18,7 @@ os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = plugin_path
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi("/Users/kashishkapoor/Desktop/Mate_ROV.ui", self)
+        uic.loadUi("/Users/anyali/Downloads/Mate_ROV.ui", self)
 
         for label in [self.Camera_Feed_1, self.Camera_Feed_2, self.Camera_Feed_3]:
             label.setScaledContents(True)
@@ -33,10 +33,13 @@ class MainWindow(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.camera_receiver.poll)
         self.timer.start(10)
-
         self.recorder = CameraRecorder(frame_size=(640, 480))
 
-        self.sensor_client = SensorClient()
+        # Keep remote sensor changes as well
+        # Sensor setup
+        # self.sensor_client = SensorClient(ws_url="ws://<PI_IP>:8765")
+        self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
+
         self.sensor_client.data_received.connect(self.update_sensors)
         self.sensor_client.start()
 
@@ -62,6 +65,7 @@ class MainWindow(QMainWindow):
 
     def update_sensors(self, data):
         self.Humidity_Data.setText(f"Humidity: {data.get('humidity', 0)} %")
+        self.Current_Data.setText(f"Current: {data.get('current', 0)} A")
 
     def keyPressEvent(self, event):
         key = event.key()

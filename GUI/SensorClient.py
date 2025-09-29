@@ -16,8 +16,8 @@ class SensorClient(QObject):
         try:
             data = json.loads(message)
             self.data_received.emit(data)
-        except:
-            pass
+        except Exception as e:
+            print(f"Message parse error: {e}")
 
     def on_open(self, ws):
         self.connected = True
@@ -37,3 +37,13 @@ class SensorClient(QObject):
             )
             self.ws.run_forever()
         threading.Thread(target=run_ws, daemon=True).start()
+
+    def send(self, data: dict):
+        if self.ws and self.connected:
+            try:
+                self.ws.send(json.dumps(data))
+                print(f"Sent: {data}")
+            except Exception as e:
+                print(f"Send error: {e}")
+        else:
+            print("WebSocket not connected. Cannot send data.")
