@@ -5,6 +5,9 @@ from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
 from CamReceiver_Dummy import CameraReceiver
 from SensorClient_Dummy import SensorClient
+from Cam_Recorder import CameraRecorder
+from SensorClient_Dummy import SensorClient
+from ClawClient import ClawClient
 import cv2
 import os
 import PyQt6
