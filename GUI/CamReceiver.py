@@ -5,8 +5,9 @@ import cv2
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
 
+
 class CameraReceiver(QObject):
-    frame_received = pyqtSignal(int, object)  
+    frame_received = pyqtSignal(int, object)
 
     def __init__(self, ports=[5005, 5006, 5007]):
         super().__init__()
