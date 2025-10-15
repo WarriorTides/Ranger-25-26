@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
 from CamReceiver_Dummy import CameraReceiver
 from SensorClient_Dummy import SensorClient
+from ClawClient import ClawClient
 import cv2
 import os
 import PyQt6
@@ -37,6 +38,11 @@ class MainWindow(QMainWindow):
         self.sensor_client.data_received.connect(self.update_sensors)
         self.sensor_client.start()
 
+        # start claw client
+        self.claw_client = ClawClient(ws_url="ws://localhost:8770")
+        self.claw_client.data_received.connect(self.update_claws)
+        self.claw_client.start()
+
     def update_camera(self, cam_id, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = frame.shape
@@ -63,6 +69,13 @@ class MainWindow(QMainWindow):
     def update_sensors(self, data):
         self.Humidity_Data.setText(f"Humidity: {data.get('humidity',0)} %")
         self.Current_Data.setText(f"Current: {data.get('current', 0)} A")
+    
+    def update_claws(self, data):
+        claw1 = data.get("claw1", "unknown").capitalize()
+        claw2 = data.get("claw2", "unknown").capitalize()
+        self.Claw_One_Status.setText(f"Claw 1: {claw1}")
+        self.Claw_Two_Status.setText(f"Claw 2: {claw2}")
+
 
 
 if __name__ == "__main__":
