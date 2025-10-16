@@ -11,6 +11,7 @@ from ClawClient import ClawClient
 import cv2
 import os
 import PyQt6
+from SensorClient import SensorClient
 
 plugin_path = os.path.join(os.path.dirname(
     PyQt6.__file__), "Qt6", "plugins", "platforms")
@@ -40,10 +41,17 @@ class MainWindow(QMainWindow):
         # Keep remote sensor changes as well
         # Sensor setup
         # self.sensor_client = SensorClient(ws_url="ws://<PI_IP>:8765")
-        self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
 
+        # inside MainWindow.__init__()
+        self.sensor_client = SensorClient(ws_url="ws://192.168.1.50:8765")
         self.sensor_client.data_received.connect(self.update_sensors)
         self.sensor_client.start()
+
+
+        # self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
+
+        # self.sensor_client.data_received.connect(self.update_sensors)
+        # self.sensor_client.start()
 
         # start claw client
         self.claw_client = ClawClient(ws_url="ws://localhost:8770")
@@ -69,9 +77,9 @@ class MainWindow(QMainWindow):
 
         if cam_id == 1:
             self.recorder.write_frame(frame)
-
+    
     def update_sensors(self, data):
-        self.Humidity_Data.setText(f"Humidity: {data.get('humidity', 0)} %")
+        self.Humidity_Data.setText(f"Humidity: {data.get('humidity', 0):.1f} %")
         self.Current_Data.setText(f"Current: {data.get('current', 0)} A")
     
     def update_claws(self, data):

@@ -1,27 +1,40 @@
+# SensorServer.py
 import asyncio
 import json
-import serial
+import socket
 import websockets
 
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+UDP_PORT = 8888
+WEBSOCKET_PORT = 8765
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(("", UDP_PORT))
+sock.settimeout(0.1)
 
 async def handler(websocket):
-    print("Client connected")
+    print("WebSocket client connected")
     try:
         while True:
-            line = ser.readline().decode().strip()
-            if line.startswith("HUMIDITY:"):
-                humidity = float(line.split(":")[1])
-                data = {"humidity": humidity}
-                await websocket.send(json.dumps(data))
-                print(f"Sent: {data}")
-            await asyncio.sleep(0.2)
+            try:
+                data, addr = sock.recvfrom(1024)
+                msg = data.decode().strip()
+
+                if msg.startswith("HUM:"):
+                    humidity = float(msg.split(":")[1])
+                    payload = {"humidity": humidity}
+                    await websocket.send(json.dumps(payload))
+                    print(f"Sent to WebSocket: {payload}")
+
+            except socket.timeout:
+                pass
+            await asyncio.sleep(0.05)
+
     except websockets.ConnectionClosed:
-        print("Client disconnected")
+        print("WebSocket client disconnected")
 
 async def main():
-    async with websockets.serve(handler, "0.0.0.0", 8765):
-        print("Sensor WebSocket server running on ws://0.0.0.0:8765")
+    async with websockets.serve(handler, "localhost", WEBSOCKET_PORT):
+        print(f"Sensor WebSocket server running on ws://localhost:{WEBSOCKET_PORT}")
         await asyncio.Future()
 
 if __name__ == "__main__":
