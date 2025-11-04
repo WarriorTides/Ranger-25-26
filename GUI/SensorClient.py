@@ -3,10 +3,11 @@ import threading
 import json
 from PyQt6.QtCore import QObject, pyqtSignal
 
-class SensorClient(QObject):
-    data_received = pyqtSignal(dict) 
 
-    def __init__(self, ws_url="ws://<PI_IP>:8765"):
+class SensorClient(QObject):
+    data_received = pyqtSignal(dict)
+
+    def __init__(self, ws_url="ws://192.168.2.10:8765"):
         super().__init__()
         self.ws_url = ws_url
         self.ws = None

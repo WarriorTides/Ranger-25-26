@@ -5,7 +5,7 @@ import time
 # Thruster mapping
 mapping = [
     {"name": "OFR", "index": 1},
-    {"name": "OFL", "index": 6}, 
+    {"name": "OFL", "index": 6},
     {"name": "OBR", "index": 2},
     {"name": "OBL", "index": 5},
     {"name": "IFL", "index": 7},
@@ -15,9 +15,12 @@ mapping = [
 ]
 mapping = sorted(mapping, key=lambda x: x["index"])
 
-MAX_POWER = 0.3  
+MAX_POWER = 0.3
+
+
 def map_thruster(value, MAX_POWER):
     return int((value * MAX_POWER) * 400 + 1500)
+
 
 def parse_thruster_control(controlData):
     controlString = "c"

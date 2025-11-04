@@ -20,7 +20,6 @@ class CameraReceiver(QObject):
             self.sockets.append(sock)
 
     def poll(self):
-        """Call this periodically (e.g., via QTimer)"""
         for idx, sock in enumerate(self.sockets):
             try:
                 while True:

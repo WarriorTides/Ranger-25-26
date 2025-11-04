@@ -4,12 +4,14 @@ import json
 import base64
 import time
 
-PC_IP = "<PC_IP>"  
-PORTS = [5005, 5006, 5007]  
+PC_IP = "192.168.1.119"
+PORTS = [5005, 5006, 5007]
 
 sockets = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in PORTS]
 
-caps = [cv2.VideoCapture(i) for i in range(3)]
+# caps = [cv2.VideoCapture(i) for i in range(3)]
+caps = [0, 1]
+
 
 def send_frame(cam_id, frame):
     _, buffer = cv2.imencode('.jpg', frame)
@@ -21,14 +23,15 @@ def send_frame(cam_id, frame):
     }).encode()
     sockets[cam_id].sendto(msg, (PC_IP, PORTS[cam_id]))
 
+
 try:
     while True:
         for i, cap in enumerate(caps):
             ret, frame = cap.read()
             if ret:
-                frame = cv2.resize(frame, (320, 240)) 
+                frame = cv2.resize(frame, (320, 240))
                 send_frame(i, frame)
-        time.sleep(0.03)  
+        time.sleep(0.03)
 except KeyboardInterrupt:
     print("Shutting down cameras")
 finally:

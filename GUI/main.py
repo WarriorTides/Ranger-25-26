@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QSizePolicy
 from PyQt6 import uic
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
-from CamReceiver_Dummy import CameraReceiver
+from CamReceiver import CameraReceiver
 from SensorClient_Dummy import SensorClient
 from Cam_Recorder import CameraRecorder
 import cv2
@@ -18,7 +18,7 @@ os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = plugin_path
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi("/Users/anyali/Downloads/Mate_ROV.ui", self)
+        uic.loadUi("/Users/kashishkapoor/Desktop/Mate_ROV.ui", self)
 
         for label in [self.Camera_Feed_1, self.Camera_Feed_2, self.Camera_Feed_3]:
             label.setScaledContents(True)
@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
         # Keep remote sensor changes as well
         # Sensor setup
         # self.sensor_client = SensorClient(ws_url="ws://<PI_IP>:8765")
-        self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
+        self.sensor_client = SensorClient(ws_url="ws://192.168.2.10:8765")
 
         self.sensor_client.data_received.connect(self.update_sensors)
         self.sensor_client.start()
