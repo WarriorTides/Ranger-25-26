@@ -58,7 +58,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 class SensorClient(QObject):
     data_received = pyqtSignal(dict)
 
-    def __init__(self, ws_url="ws://192.168.1.50:8765"):  # IP of computer
+    def __init__(self, ws_url="ws://192.168.1.119:8765"):  # IP of computer
         super().__init__()
         self.ws_url = ws_url
 
@@ -68,15 +68,15 @@ class SensorClient(QObject):
                 try:
                     data = json.loads(message)
                     self.data_received.emit(data)
-                    print("[SensorClient] Received:", data)
+                    print("SensorClient Received:", data)
                 except Exception as e:
-                    print("[SensorClient] Parse error:", e)
+                    print("SensorClient Parse error:", e)
 
             def on_open(ws):
-                print("[SensorClient] Connected to server")
+                print("SensorClient Connected to server")
 
             def on_close(ws, *_):
-                print("[SensorClient] Disconnected")
+                print("SensorClient Disconnected")
 
             ws = websocket.WebSocketApp(
                 self.ws_url,

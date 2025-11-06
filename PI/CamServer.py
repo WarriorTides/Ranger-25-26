@@ -9,7 +9,8 @@ PORTS = [5005, 5006, 5007]
 
 sockets = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in PORTS]
 
-caps = [cv2.VideoCapture(i) for i in range(3)]
+# caps = [cv2.VideoCapture(i) for i in range(3)]
+caps = [0, 1]
 
 def send_frame(cam_id, frame):
     _, buffer = cv2.imencode('.jpg', frame)

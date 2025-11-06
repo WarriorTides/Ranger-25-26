@@ -43,7 +43,8 @@ class MainWindow(QMainWindow):
         # self.sensor_client = SensorClient(ws_url="ws://<PI_IP>:8765")
 
         # inside MainWindow.__init__()
-        self.sensor_client = SensorClient(ws_url="ws://192.168.1.50:8765")
+        #HERE YOU CAN SET THE IP ADDRESS OF THE SENSOR SERVER
+        self.sensor_client = SensorClient(ws_url="ws://192.168.1.103:8765")
         self.sensor_client.data_received.connect(self.update_sensors)
         self.sensor_client.start()
 
@@ -77,10 +78,16 @@ class MainWindow(QMainWindow):
 
         if cam_id == 1:
             self.recorder.write_frame(frame)
-    
+
     def update_sensors(self, data):
-        self.Humidity_Data.setText(f"Humidity: {data.get('humidity', 0):.1f} %")
-        self.Current_Data.setText(f"Current: {data.get('current', 0)} A")
+        if "humidity" in data:
+            self.Humidity_Data.setText(f"Humidity: {data['humidity']:.1f} %")
+        if "current" in data:
+            self.Current_Data.setText(f"Current: {data['current']:.2f} A")
+
+    # def update_sensors(self, data):
+    #     self.Humidity_Data.setText(f"Humidity: {data.get('humidity', 0):.1f} %")
+    #     self.Current_Data.setText(f"Current: {data.get('current', 0)} A")
     
     def update_claws(self, data):
         claw1 = data.get("claw1", "unknown").capitalize()
