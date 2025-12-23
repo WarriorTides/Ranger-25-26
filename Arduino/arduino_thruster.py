@@ -2,6 +2,7 @@
 
 const int THRUSTER_COUNT = 8;
 Servo thrusters[THRUSTER_COUNT];
+// Digital pins connected to each thruster's ESC signal wire
 const byte thrusterPins[] = {17, 15, 13, 11, 3, 5, 7, 9};
 
 void setup() {
@@ -24,11 +25,16 @@ void loop() {
     Serial.print("Raw input: ");
     Serial.println(msg);
 
+    // Check for command starting with 'c'
+    // Expected format:
+    // c 1500,1500,1500,1500,1500,1500,1500,1500
     if (msg.charAt(0) == 'c') {
       String data = msg.substring(2);
       int thrusterValues[THRUSTER_COUNT] = {1500,1500,1500,1500,1500,1500,1500,1500};
 
       int index = 0;
+
+      // Parse comma-separated PWM values
       while (data.length() > 0 && index < THRUSTER_COUNT) {
         int comma = data.indexOf(',');
         String token;
@@ -43,6 +49,8 @@ void loop() {
         index++;
       }
 
+
+      // Apply PWM values to each thruster
       for (int i = 0; i < THRUSTER_COUNT; i++) {
         int value = thrusterValues[i];
         if (value >= 1100 && value <= 1900) {

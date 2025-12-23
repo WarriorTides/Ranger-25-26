@@ -4,9 +4,9 @@ from PyQt6 import uic
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
 from CamReceiver_Dummy import CameraReceiver
-from SensorClient_Dummy import SensorClient
+# from SensorClient_Dummy import SensorClient
 from Cam_Recorder import CameraRecorder
-from SensorClient_Dummy import SensorClient
+# from SensorClient_Dummy import SensorClient
 from ClawClient import ClawClient
 import cv2
 import os
@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         uic.loadUi("/Users/anyali/Downloads/Mate_ROV.ui", self)
 
+        # Camera feed setup
         for label in [self.Camera_Feed_1, self.Camera_Feed_2, self.Camera_Feed_3]:
             label.setScaledContents(True)
             label.setSizePolicy(QSizePolicy.Policy.Expanding,
@@ -40,25 +41,18 @@ class MainWindow(QMainWindow):
 
         # Keep remote sensor changes as well
         # Sensor setup
-        # self.sensor_client = SensorClient(ws_url="ws://<PI_IP>:8765")
-
-        # inside MainWindow.__init__()
         #HERE YOU CAN SET THE IP ADDRESS OF THE SENSOR SERVER
-        self.sensor_client = SensorClient(ws_url="ws://192.168.1.103:8765")
+        self.sensor_client = SensorClient(ws_url="ws://192.168.1.132:8765")
         self.sensor_client.data_received.connect(self.update_sensors)
         self.sensor_client.start()
 
-
-        # self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
-
-        # self.sensor_client.data_received.connect(self.update_sensors)
-        # self.sensor_client.start()
 
         # start claw client
         self.claw_client = ClawClient(ws_url="ws://localhost:8770")
         self.claw_client.data_received.connect(self.update_claws)
         self.claw_client.start()
 
+    # Update camera feed
     def update_camera(self, cam_id, frame):
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = frame_rgb.shape
@@ -79,23 +73,25 @@ class MainWindow(QMainWindow):
         if cam_id == 1:
             self.recorder.write_frame(frame)
 
+    # Update sensor data display
     def update_sensors(self, data):
         if "humidity" in data:
             self.Humidity_Data.setText(f"Humidity: {data['humidity']:.1f} %")
         if "current" in data:
             self.Current_Data.setText(f"Current: {data['current']:.2f} A")
 
-    # def update_sensors(self, data):
-    #     self.Humidity_Data.setText(f"Humidity: {data.get('humidity', 0):.1f} %")
-    #     self.Current_Data.setText(f"Current: {data.get('current', 0)} A")
     
+
+    # Update claw status display
     def update_claws(self, data):
         claw1 = data.get("claw1", "unknown").capitalize()
         claw2 = data.get("claw2", "unknown").capitalize()
         self.Claw_One_Status.setText(f"Claw 1: {claw1}")
         self.Claw_Two_Status.setText(f"Claw 2: {claw2}")
 
-
+    # Handle key press events for recording
+    # C → start recording
+    # S → stop recording
     def keyPressEvent(self, event):
         key = event.key()
         if key == Qt.Key.Key_C:

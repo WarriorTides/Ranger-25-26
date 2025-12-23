@@ -25,10 +25,10 @@ class ClawClient(QObject):
             print("Parse error:", e)
 
     def _on_error(self, ws, error):
-        print("WebSocket error:", error)
+        print("[Claw] WebSocket error:", error)
 
     def _on_close(self, ws, code, msg):
-        print("WebSocket closed")
+        print("[Claw] WebSocket closed")
 
     def _on_open(self, ws):
         print("Claw WebSocket connected")
