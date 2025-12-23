@@ -109,12 +109,14 @@ async def sensor_ws_handler(websocket):
     try:
         while True:
             try:
+                # Receive sensor data from Arduino via UDP
                 data, addr = sock.recvfrom(1024)
                 msg = data.decode().strip()
                 print(f"From {addr}: {msg}")
 
                 payload = None
 
+                # Parse humidity sensor data
                 if msg.startswith("HUM:"):
                     try:
                         humidity = float(msg[4:])
@@ -122,7 +124,7 @@ async def sensor_ws_handler(websocket):
                         print(f"Humidity = {humidity}")
                     except:
                         print(f"Bad humidity: {msg}")
-
+                # Parse current sensor data
                 elif msg.startswith("CUR:"):
                     try:
                         current = float(msg[4:])
@@ -131,6 +133,7 @@ async def sensor_ws_handler(websocket):
                     except:
                         print(f"Bad current: {msg}")
 
+                # Broadcast sensor data to connected WebSocket clients
                 if payload:
                     json_msg = json.dumps(payload)
                     dead = []
@@ -151,7 +154,7 @@ async def sensor_ws_handler(websocket):
         print("Client disconnected")
         connected_clients.discard(websocket)
 
-
+# Main function to start the WebSocket server and run tasks
 async def main():
     print(f"Websocket server: ws://0.0.0.0:{WEBSOCKET_PORT}")
 
@@ -160,6 +163,6 @@ async def main():
             claw(),
         )
 
-
+# Run the main function
 if __name__ == "__main__":
     asyncio.run(main())
