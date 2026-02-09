@@ -10,8 +10,13 @@ PORTS = [5005, 5006, 5007]
 
 sockets = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in PORTS]
 
+<<<<<<< HEAD
 camera_indices = [0, 4, 3]
 caps = []
+=======
+# caps = [cv2.VideoCapture(i) for i in range(3)]
+caps = [0, 1]
+>>>>>>> 8847c960a9c8050c2d558a2b7e65d68712b5d4d4
 
 for i in camera_indices:
     cap = cv2.VideoCapture(i)

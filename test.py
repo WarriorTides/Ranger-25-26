@@ -1,4 +1,5 @@
 import cv2
+<<<<<<< HEAD
 import os
 import subprocess
 
@@ -80,3 +81,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+=======
+
+for i in range(10):
+    print(f"\nTrying camera {i}...")
+    cap = cv2.VideoCapture(i)
+
+    if cap.isOpened():
+        ret, frame = cap.read()
+        if ret and frame is not None:
+            print(f"Camera {i} works: {frame.shape[1]}x{frame.shape[0]}")
+        else:
+            print(f"Camera {i} opened but can't read frames")
+        cap.release()
+    else:
+        print(f"Camera {i} won't open")
+
+>>>>>>> 8847c960a9c8050c2d558a2b7e65d68712b5d4d4
