@@ -15,6 +15,7 @@ class CameraReceiver(QObject):
         self.sockets = []
         for port in ports:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("0.0.0.0", port))
             sock.setblocking(False)
             self.sockets.append(sock)
@@ -36,3 +37,7 @@ class CameraReceiver(QObject):
                 continue
             except Exception as e:
                 print(f"CameraReceiver error: {e}")
+
+    def close(self):
+        for sock in self.sockets:
+            sock.close()

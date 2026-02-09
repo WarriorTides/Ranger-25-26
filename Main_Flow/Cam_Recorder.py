@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class CameraRecorder:
-    def __init__(self, fps=20, frame_size=(640, 480)):
+    def __init__(self, fps=20, frame_size=(320, 240)):
         self.fps = fps
         self.frame_size = frame_size
         self.writer = None
@@ -13,7 +13,7 @@ class CameraRecorder:
         os.makedirs(downloads, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.save_path = os.path.join(
-            downloads, f"rov_recording_{timestamp}.mp4")
+            downloads, f"rov_recording_{timestamp}.avi")
 
     def start_recording(self):
         if not self.recording:

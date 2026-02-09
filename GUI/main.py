@@ -3,9 +3,9 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QSizePolicy
 from PyQt6 import uic
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
-from CamReceiver import CameraReceiver
+from Main_Flow.CamReceiver import CameraReceiver
 from SensorClient_Dummy import SensorClient
-from Cam_Recorder import CameraRecorder
+from Main_Flow.Cam_Recorder import CameraRecorder
 import cv2
 import os
 import PyQt6
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.camera_receiver.poll)
         self.timer.start(10)
-        self.recorder = CameraRecorder(frame_size=(640, 480))
+        self.recorder = CameraRecorder(frame_size=(320, 240))
 
         # Keep remote sensor changes as well
         # Sensor setup

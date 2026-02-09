@@ -12,6 +12,7 @@ class SensorClient(QObject):
         self.ws_url = ws_url
         self.ws = None
         self.connected = False
+        self.running = True  # ← ADDED: Track if client should keep running
 
     def on_message(self, ws, message):
         try:
@@ -48,3 +49,14 @@ class SensorClient(QObject):
                 print(f"Send error: {e}")
         else:
             print("WebSocket not connected. Cannot send data.")
+    
+    # ← ADDED: stop() method
+    def stop(self):
+        """Stop the sensor client and close WebSocket connection"""
+        self.running = False
+        if self.ws:
+            try:
+                self.ws.close()
+            except:
+                pass
+        print("Sensor client stopped")
