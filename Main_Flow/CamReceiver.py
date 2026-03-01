@@ -13,6 +13,7 @@ class CameraReceiver(QObject):
         super().__init__()
         self.ports = ports
         self.sockets = []
+
         for port in ports:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -21,22 +22,37 @@ class CameraReceiver(QObject):
             self.sockets.append(sock)
 
     def poll(self):
-        for idx, sock in enumerate(self.sockets):
+        for sock in self.sockets:
+            latest_packet = None
+
             try:
                 while True:
-                    data, addr = sock.recvfrom(65536)
-                    msg = json.loads(data.decode())
-                    if msg['type'] == 'camera':
-                        cam_id = int(msg['camera_id'])
-                        jpg_bytes = base64.b64decode(msg['data'])
-                        nparr = np.frombuffer(jpg_bytes, np.uint8)
-                        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                        if frame is not None:
-                            self.frame_received.emit(cam_id, frame)
+                    latest_packet, _ = sock.recvfrom(65536)
             except BlockingIOError:
-                continue
+                pass
             except Exception as e:
-                print(f"CameraReceiver error: {e}")
+                print(f"Socket read error: {e}")
+                continue
+
+            if latest_packet:
+                try:
+                    msg = json.loads(latest_packet.decode())
+
+                    if msg.get("type") != "camera":
+                        continue
+
+                    cam_id = int(msg.get("camera_id", 0))
+
+                    jpg_bytes = base64.b64decode(msg["data"])
+                    nparr = np.frombuffer(jpg_bytes, np.uint8)
+
+                    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+                    if frame is not None:
+                        self.frame_received.emit(cam_id, frame)
+
+                except Exception as e:
+                    print(f"Frame decode error: {e}")
 
     def close(self):
         for sock in self.sockets:

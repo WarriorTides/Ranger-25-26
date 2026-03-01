@@ -62,41 +62,46 @@ class MainWindow(QMainWindow):
         print("Camera feeds initialized")
 
         # ========================================
-        # Sensor Display Setup
-        # ========================================
-        print("Setting up sensor client...")
-        # Sensor client - connects to WebSocket server to receive sensor data
-        # CHANGE THIS TO localhost SINCE SERVER RUNS IN SAME PROGRAM
-        self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
-        self.sensor_client.data_received.connect(self.update_sensors)
-        self.sensor_client.start()
-        print("Sensor client started")
-
-        # ========================================
-        # Control System Setup (NEW)
-        # ========================================
-        print("Starting control system...")
-        # Control thread - handles joystick input for thrusters and claw
-        # CHANGE arduino_ip TO YOUR ARDUINO'S IP ADDRESS
-        self.control_thread = ControlThread(
-            arduino_ip="192.168.1.151",
-            arduino_port=8888
-        )
-        self.control_thread.start()
-        print("Control thread started")
-
-        # ========================================
-        # Sensor WebSocket Server Setup (NEW)
+        # Sensor WebSocket Server Setup (START THIS FIRST!)
         # ========================================
         print("Starting sensor WebSocket server...")
         # Sensor WebSocket server - receives sensor data from Arduino
-        # and forwards to sensor client above
+        # and forwards to sensor client
         self.sensor_ws_thread = SensorWebSocketThread(
             ws_port=8765,
             udp_port=8888
         )
         self.sensor_ws_thread.start()
         print("Sensor WebSocket server started")
+
+        # ========================================
+        # Sensor Display Setup (START AFTER SERVER)
+        # ========================================
+        print("Setting up sensor client...")
+        # Sensor client - connects to WebSocket server to receive sensor data
+        self.sensor_client = SensorClient(ws_url="ws://localhost:8765")
+        self.sensor_client.data_received.connect(self.update_sensors)
+        # Delay start to let WebSocket server initialize first
+        QTimer.singleShot(1000, self.sensor_client.start)
+        print("Sensor client will connect in 1 second...")
+
+        # ========================================
+        # Control System Setup (macOS compatible)
+        # ========================================
+        print("Starting control system...")
+        # Control system - handles joystick input for thrusters and claw
+        # CHANGE arduino_ip TO YOUR ARDUINO'S IP ADDRESS
+        self.control_thread = ControlThread(
+            arduino_ip="192.168.1.151",
+            arduino_port=8888
+        )
+        # DON'T call .start() - pygame must run on main thread on macOS
+        print("Control system initialized")
+
+        # Add timer to process joystick on main thread (macOS requirement)
+        self.control_timer = QTimer()
+        self.control_timer.timeout.connect(self.control_thread.process_events)
+        self.control_timer.start(50)  # Process every 20ms (50Hz)
 
         print("\n" + "="*50)
         print("ROV CONTROL SYSTEM FULLY INITIALIZED")
@@ -169,10 +174,15 @@ class MainWindow(QMainWindow):
         """
         print("\nShutting down ROV control system...")
 
-        # Stop all threads
+        # Stop control timer
+        if hasattr(self, 'control_timer'):
+            self.control_timer.stop()
+
+        # Stop control system
         if hasattr(self, 'control_thread'):
             self.control_thread.stop()
 
+        # Stop sensor WebSocket server
         if hasattr(self, 'sensor_ws_thread'):
             self.sensor_ws_thread.stop()
 
@@ -182,7 +192,8 @@ class MainWindow(QMainWindow):
 
         # Stop sensor client
         if hasattr(self, 'sensor_client'):
-            self.sensor_client.stop()
+            if hasattr(self.sensor_client, 'stop'):
+                self.sensor_client.stop()
 
         print("Shutdown complete")
         event.accept()

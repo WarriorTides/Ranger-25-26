@@ -1,39 +1,18 @@
-"""
-cam_sender.py — Optimized ROV camera streamer
-
-Key improvements over original:
-- Raw JPEG bytes sent directly (no Base64, no JSON) → ~33% smaller packets
-- Adaptive frame timing: measures encode+send time and sleeps only the remainder
-- Per-camera thread with its own socket
-- Camera opened with V4L2 backend on Linux for lower latency (falls back gracefully)
-- JPEG quality reduced to 50 (barely visible difference at 320x240, much faster)
-- Frame is captured, encoded, and sent in a tight loop — no artificial sleep drift
-"""
-
 import cv2
 import socket
 import struct
 import time
 import threading
 
-# ── Configuration ────────────────────────────────────────────────────────────
 
 PC_IP = "192.168.1.119"
 PORTS = [5005, 5006, 5007]
-CAMERA_IDS = [0, 4, 8]          # adjust to your actual camera indices
+CAMERA_IDS = [0, 4, 3]          # adjust to your actual camera indices
 TARGET_FPS = 15
 FRAME_W = 320
 FRAME_H = 240
 # 40-60 is plenty for FPV; cuts packet size nearly in half
 JPEG_QUALITY = 50
-
-# ── Packet format ─────────────────────────────────────────────────────────────
-#
-#  [ 1 byte cam_id ][ 4 bytes payload_len (big-endian) ][ N bytes JPEG ]
-#
-#  Total overhead: 5 bytes vs ~200+ bytes for JSON+Base64 wrapper.
-#  The receiver must be updated to match (see CamReceiver below).
-
 HEADER_FMT = ">BI"   # unsigned char + unsigned int
 HEADER_SIZE = struct.calcsize(HEADER_FMT)   # 5 bytes
 
@@ -41,8 +20,6 @@ HEADER_SIZE = struct.calcsize(HEADER_FMT)   # 5 bytes
 def make_header(cam_id: int, payload_len: int) -> bytes:
     return struct.pack(HEADER_FMT, cam_id, payload_len)
 
-
-# ── Per-camera streaming thread ───────────────────────────────────────────────
 
 def camera_loop(cam_idx: int, cam_device: int):
     """Capture → encode → send loop for one camera."""
@@ -63,7 +40,6 @@ def camera_loop(cam_idx: int, cam_device: int):
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  FRAME_W)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
     cap.set(cv2.CAP_PROP_FPS,          TARGET_FPS)
-    # Minimize OpenCV's internal capture buffer — we only want the latest frame
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     encode_params = [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]
@@ -89,21 +65,16 @@ def camera_loop(cam_idx: int, cam_device: int):
         header = make_header(cam_idx + 1, len(jpg_bytes))
         packet = header + jpg_bytes
 
-        # UDP max safe payload is ~65507 bytes; a 320x240 JPEG at q=50
-        # is typically 5–12KB so we're well within limits.
         try:
             sock.sendto(packet, dest)
         except Exception as e:
             print(f"[Cam {cam_idx+1}] Send error: {e}")
 
-        # Sleep only the time remaining in this frame slot
         elapsed = time.monotonic() - t0
         remaining = frame_interval - elapsed
         if remaining > 0:
             time.sleep(remaining)
 
-
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
     if len(CAMERA_IDS) > len(PORTS):

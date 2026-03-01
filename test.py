@@ -1,100 +1,69 @@
+"""
+cam_test.py — Run this on the Pi to find which camera indices work
+
+Usage:
+    python3 cam_test.py
+
+It will test indices 0-10 and print which ones successfully capture a frame.
+"""
+
 import cv2
-<<<<<<< HEAD
-import os
-import subprocess
+import time
 
-def list_arducam_devices():
-    devices = {}
-    try:
-        result = subprocess.run(["v4l2-ctl", "--list-devices"], capture_output=True, text=True)
-        lines = result.stdout.splitlines()
-        
-        current_cam = None
-        for line in lines:
-            if line.strip() == "":
-                continue
-            if not line.startswith("\t"):
-                current_cam = line.strip()
-                devices[current_cam] = []
-            else:
-                dev_path = line.strip()
-                if dev_path.startswith("/dev/video") and "Arducam" in current_cam:
-                    devices[current_cam].append(dev_path)
-    except FileNotFoundError:
-        print("v4l2-ctl not found. Install it with: sudo apt install v4l-utils")
-    return devices
+INDICES_TO_TEST = list(range(11))   # tests 0 through 10
 
-def test_camera(dev):
-    cap = cv2.VideoCapture(dev)
-    if cap.isOpened():
+print("=" * 40)
+print("CAMERA INDEX TESTER")
+print("=" * 40)
+print("Testing camera indices 0-10...\n")
+
+working = []
+failed = []
+
+for idx in INDICES_TO_TEST:
+    print(f"Testing index {idx}...", end=" ", flush=True)
+
+    # Try V4L2 first (faster on Pi), fallback to default
+    cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(idx)
+
+    if not cap.isOpened():
+        print("✗ Could not open")
+        failed.append(idx)
+        continue
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+
+    # Try reading a few frames — first frame is often black/empty on Pi
+    success = False
+    for attempt in range(5):
         ret, frame = cap.read()
-        cap.release()
-        if ret:
-            return True
-        else:
-            return False
-    else:
-        return False
-
-def main():
-    print("Detecting Arducam devicesss")
-    cameras = list_arducam_devices()
-    
-    if not cameras:
-        print("No Arducam cameras found")
-        return
-    
-    for cam_name, nodes in cameras.items():
-        print(f"\nCamera: {cam_name}")
-        for dev in nodes:
-            works = test_camera(dev)
-            status = "WORKS!" if works else "FAILED"
-            print(f"  {dev}: {status}")
-
-    print("\nStreaming first working node of each camera. Press 'q' to quit.")
-    caps = []
-    for cam_name, nodes in cameras.items():
-        for dev in nodes:
-            if test_camera(dev):
-                cap = cv2.VideoCapture(dev)
-                if cap.isOpened():
-                    caps.append((cam_name, cap))
-                break 
-    
-    if not caps:
-        print("No cameras available for streaming.")
-        return
-
-    while True:
-        for cam_name, cap in caps:
-            ret, frame = cap.read()
-            if ret:
-                cv2.imshow(cam_name, frame)
-            else:
-                print(f"{cam_name}: Failed to read frame")
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if ret and frame is not None and frame.size > 0:
+            success = True
             break
+        time.sleep(0.1)
 
-    for _, cap in caps:
-        cap.release()
-    cv2.destroyAllWindows()
+    cap.release()
 
-if __name__ == "__main__":
-    main()
-=======
-
-for i in range(10):
-    print(f"\nTrying camera {i}...")
-    cap = cv2.VideoCapture(i)
-
-    if cap.isOpened():
-        ret, frame = cap.read()
-        if ret and frame is not None:
-            print(f"Camera {i} works: {frame.shape[1]}x{frame.shape[0]}")
-        else:
-            print(f"Camera {i} opened but can't read frames")
-        cap.release()
+    if success:
+        print(f"✓ WORKS  (frame shape: {frame.shape})")
+        working.append(idx)
     else:
-        print(f"Camera {i} won't open")
+        print("✗ Opens but no frame")
+        failed.append(idx)
 
->>>>>>> 8847c960a9c8050c2d558a2b7e65d68712b5d4d4
+print("\n" + "=" * 40)
+print("RESULTS")
+print("=" * 40)
+
+if working:
+    print(f"Working indices: {working}")
+    print(f"\nUpdate cam_sender.py:")
+    print(f"  CAMERA_IDS = {working[:3]}")  # suggest first 3
+else:
+    print("No working cameras found!")
+    print("Check: are cameras plugged in? Try 'ls /dev/video*' to list devices.")
+
+print("=" * 40)

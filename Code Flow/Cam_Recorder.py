@@ -4,11 +4,13 @@ from datetime import datetime
 
 
 class CameraRecorder:
+
     def __init__(self, fps=20, frame_size=(320, 240)):
         self.fps = fps
         self.frame_size = frame_size
         self.writer = None
         self.recording = False
+
         downloads = os.path.join(os.path.expanduser("~"), "Downloads")
         os.makedirs(downloads, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -21,20 +23,22 @@ class CameraRecorder:
                 self.save_path,
                 cv2.VideoWriter_fourcc(*"mp4v"),
                 self.fps,
-                self.frame_size
+                self.frame_size,
             )
             self.recording = True
-            print(f"Recording started: {self.save_path}")
+            print(f"[Recorder] Started: {self.save_path}")
 
-    def write_frame(self, frame):
-        if self.recording and self.writer is not None:
-            if frame.shape[1] != self.frame_size[0] or frame.shape[0] != self.frame_size[1]:
-                frame = cv2.resize(frame, self.frame_size)
-            self.writer.write(frame)
+    def write_frame(self, frame_bgr):
+        if not self.recording or self.writer is None:
+            return
+        h, w = frame_bgr.shape[:2]
+        if (w, h) != self.frame_size:
+            frame_bgr = cv2.resize(frame_bgr, self.frame_size)
+        self.writer.write(frame_bgr)
 
     def stop_recording(self):
         if self.recording:
             self.writer.release()
             self.writer = None
             self.recording = False
-            print(f"Recording stopped. Video saved to: {self.save_path}")
+            print(f"[Recorder] Saved: {self.save_path}")
