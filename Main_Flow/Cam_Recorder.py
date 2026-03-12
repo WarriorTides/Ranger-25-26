@@ -13,7 +13,6 @@ class CameraRecorder:
         self.writer = None
         self.recording = False
 
-        # Background write thread — keeps disk I/O off the main thread
         self._queue: queue.Queue = queue.Queue(maxsize=10)
         self._thread = threading.Thread(
             target=self._write_loop, daemon=True, name="RecorderThread"
@@ -38,26 +37,51 @@ class CameraRecorder:
             print(f"[Recorder] Started: {self.save_path}")
 
     def write_frame(self, frame_bgr):
-        """Called from main thread — just enqueues, never blocks."""
+        """Called from main thread — enqueues only, never blocks."""
         if not self.recording or self.writer is None:
             return
         try:
-            # Drop frame if queue is full rather than blocking the main thread
             self._queue.put_nowait(frame_bgr)
         except queue.Full:
-            pass  # silently drop — better than freezing the UI
+            pass  # drop frame rather than stall UI
 
     def stop_recording(self):
-        if self.recording:
-            self.recording = False
-            # Flush remaining frames before releasing
+        """
+        FIX: Original used queue.join() which could deadlock the main thread
+        if the write loop was stuck. Now we drain with a timeout and clear
+        any remaining frames before releasing the writer.
+        """
+        if not self.recording:
+            return
+
+        self.recording = False
+
+        # Give the write loop up to 2 seconds to flush naturally
+        deadline = threading.Event()
+
+        def _wait():
             self._queue.join()
+            deadline.set()
+
+        waiter = threading.Thread(target=_wait, daemon=True)
+        waiter.start()
+        deadline.wait(timeout=2.0)
+
+        # Clear anything left so task_done counts stay balanced
+        while True:
+            try:
+                self._queue.get_nowait()
+                self._queue.task_done()
+            except queue.Empty:
+                break
+
+        if self.writer:
             self.writer.release()
             self.writer = None
             print(f"[Recorder] Saved: {self.save_path}")
 
     def _write_loop(self):
-        """Runs on background thread — does all actual disk writes."""
+        """Background thread — all disk I/O happens here."""
         while True:
             frame = self._queue.get()
             try:

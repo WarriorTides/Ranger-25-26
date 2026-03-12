@@ -4,27 +4,32 @@ import cv2
 import numpy as np
 import threading
 import queue
-import time
 
-from PyQt6.QtCore import QObject, pyqtSignal, Qt
+from PyQt6.QtCore import QObject, pyqtSignal
 
 HEADER_FMT = ">BI"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
 
 
 class _PerCamDecoder(threading.Thread):
-    """One decode thread per camera — frames never mix between cameras."""
+    """One decode thread per camera — frames never mix between cameras.
+    Resize is done HERE, off the main thread, to prevent UI freezing.
+    """
 
     def __init__(self, cam_id: int, on_frame):
         super().__init__(daemon=True, name=f"DecodeThread-cam{cam_id}")
         self.cam_id = cam_id
         self._on_frame = on_frame          # callable(cam_id, frame_rgb)
+        # Queue holds (jpg_bytes, target_size_or_None)
         self._queue: queue.Queue = queue.Queue(maxsize=2)
         self._running = True
+        # (width, height) set by main window
+        self.target_size: tuple | None = None
 
     def enqueue(self, jpg_bytes: bytes):
+        item = (jpg_bytes, self.target_size)
         try:
-            self._queue.put_nowait(jpg_bytes)
+            self._queue.put_nowait(item)
         except queue.Full:
             # drop oldest, push newest
             try:
@@ -32,14 +37,14 @@ class _PerCamDecoder(threading.Thread):
             except queue.Empty:
                 pass
             try:
-                self._queue.put_nowait(jpg_bytes)
+                self._queue.put_nowait(item)
             except queue.Full:
                 pass
 
     def run(self):
         while self._running:
             try:
-                jpg_bytes = self._queue.get(timeout=0.1)
+                jpg_bytes, target_size = self._queue.get(timeout=0.1)
             except queue.Empty:
                 continue
 
@@ -49,9 +54,26 @@ class _PerCamDecoder(threading.Thread):
             try:
                 nparr = np.frombuffer(jpg_bytes, np.uint8)
                 frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                if frame is not None:
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    self._on_frame(self.cam_id, frame_rgb)
+                if frame is None:
+                    continue
+
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                # ── Resize here, NOT on the main thread ──────────────────
+                if target_size:
+                    tw, th = target_size
+                    fh, fw = frame_rgb.shape[:2]
+                    if fw > 0 and fh > 0 and (fw != tw or fh != th):
+                        scale = min(tw / fw, th / fh)
+                        nw = max(1, int(fw * scale))
+                        nh = max(1, int(fh * scale))
+                        frame_rgb = cv2.resize(
+                            frame_rgb, (nw, nh),
+                            interpolation=cv2.INTER_LINEAR
+                        )
+
+                self._on_frame(self.cam_id, frame_rgb)
+
             except Exception as e:
                 print(f"[CamReceiver] Decode error cam {self.cam_id}: {e}")
 
@@ -70,7 +92,6 @@ class CameraReceiver(QObject):
         self.ports = ports or [5005, 5006, 5007]
         self.sockets: list[socket.socket] = []
 
-        # One decoder per camera (keyed by cam_id = port index + 1)
         self._decoders: dict[int, _PerCamDecoder] = {}
         for i, port in enumerate(self.ports):
             cam_id = i + 1
@@ -89,8 +110,12 @@ class CameraReceiver(QObject):
 
         print("[CamReceiver] Per-camera decode threads started")
 
-    # Called from background decode threads — must be thread-safe.
-    # PyQt6 queued signal emission is thread-safe.
+    def set_label_size(self, cam_id: int, width: int, height: int):
+        """Call this from the main window when label size changes (e.g. fullscreen)."""
+        decoder = self._decoders.get(cam_id)
+        if decoder and width > 0 and height > 0:
+            decoder.target_size = (width, height)
+
     def _on_frame_ready(self, cam_id: int, frame_rgb):
         self.frame_received.emit(cam_id, frame_rgb)
 
@@ -133,6 +158,5 @@ class CameraReceiver(QObject):
                 pass
         print("[CamReceiver] Closed")
 
-    # Legacy alias used in MainWindow.closeEvent
     def close(self):
         self.stop()

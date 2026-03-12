@@ -4,10 +4,10 @@
 const int THRUSTER_COUNT = 8;
 Servo thrusters[THRUSTER_COUNT];
 const byte thrusterPins[THRUSTER_COUNT] = {29, 27, 25, 23, 19, 17, 15, 13};
-const int CLAW1_SERVO_PIN = 2;
+const int CLAW1_SERVO_PIN = 6;
 const int CLAW1_ROT_PIN   = 8;
-const int CLAW2_SERVO_PIN = 6;
-const int CLAW2_ROT_PIN   = 9;
+const int CLAW2_SERVO_PIN = 32;
+const int CLAW2_ROT_PIN   = 34;
 const int INCREMENT = 30;
 
 int angleClaw1 = 0;
@@ -23,19 +23,19 @@ Servo claw2Rot;
 EthernetUDP udp;
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress arduinoIP(192, 168, 1, 151);
-IPAddress laptopIP(192, 168, 1, 119); // Your laptop IP
+IPAddress laptopIP(192, 168, 1, 119);
 unsigned int port = 8888;
 
 
 void setup() {
-  Serial.begin(19200);
+  Serial.begin(115200);
 
   Ethernet.begin(mac, arduinoIP);
   udp.begin(port);
 
   for (int i = 0; i < THRUSTER_COUNT; i++) {
     thrusters[i].attach(thrusterPins[i]);
-    thrusters[i].writeMicroseconds(1500); 
+    thrusters[i].writeMicroseconds(1500);
   }
 
   claw1Servo.attach(CLAW1_SERVO_PIN);
@@ -47,8 +47,8 @@ void setup() {
   claw2Servo.write(angleClaw2);
   claw2Rot.write(angleClaw2Rot);
 
-  Serial.println(" READY ");
-  delay(7000); 
+  Serial.println("READY");
+  delay(7000);
 }
 
 void loop() {
@@ -60,9 +60,6 @@ void loop() {
     String msg = String(packet);
     msg.trim();
 
-    Serial.print("UDP RX: ");
-    Serial.println(msg);
-
     if (msg.startsWith("c,")) {
       handleThrusterUDP(msg);
     } else {
@@ -73,7 +70,7 @@ void loop() {
 
 
 void handleThrusterUDP(String msg) {
-  String data = msg.substring(2); 
+  String data = msg.substring(2);
   int thrusterValues[THRUSTER_COUNT] = {1500,1500,1500,1500,1500,1500,1500,1500};
 
   int idx = 0;
@@ -98,26 +95,22 @@ void handleThrusterUDP(String msg) {
 }
 
 void handleClawUDP(String msg) {
-  if (msg == "oc1") angleClaw1 += INCREMENT;
-  else if (msg == "cc1") angleClaw1 -= INCREMENT;
-  else if (msg == "rc1") angleClaw1Rot += INCREMENT;
+  if (msg == "oc1")       angleClaw1    += INCREMENT;
+  else if (msg == "cc1")  angleClaw1    -= INCREMENT;
+  else if (msg == "rc1")  angleClaw1Rot += INCREMENT;
   else if (msg == "urc1") angleClaw1Rot -= INCREMENT;
-  else if (msg == "oc2") angleClaw2 += INCREMENT;
-  else if (msg == "cc2") angleClaw2 -= INCREMENT;
-  else if (msg == "rc2") angleClaw2Rot += INCREMENT;
+  else if (msg == "oc2")  angleClaw2    += INCREMENT;
+  else if (msg == "cc2")  angleClaw2    -= INCREMENT;
+  else if (msg == "rc2")  angleClaw2Rot += INCREMENT;
   else if (msg == "urc2") angleClaw2Rot -= INCREMENT;
 
-  angleClaw1     = constrain(angleClaw1, 0, 180);
-  angleClaw1Rot  = constrain(angleClaw1Rot, 0, 180);
-  angleClaw2     = constrain(angleClaw2, 0, 180);
-  angleClaw2Rot  = constrain(angleClaw2Rot, 0, 180);
+  angleClaw1    = constrain(angleClaw1,    0, 180);
+  angleClaw1Rot = constrain(angleClaw1Rot, 0, 180);
+  angleClaw2    = constrain(angleClaw2,    0, 180);
+  angleClaw2Rot = constrain(angleClaw2Rot, 0, 180);
 
   claw1Servo.write(angleClaw1);
   claw1Rot.write(angleClaw1Rot);
   claw2Servo.write(angleClaw2);
   claw2Rot.write(angleClaw2Rot);
 
-  udp.beginPacket(udp.remoteIP(), udp.remotePort());
-  udp.println("received");
-  udp.endPacket();
-}

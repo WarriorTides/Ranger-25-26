@@ -107,7 +107,7 @@
     <item row="3" column="0">
      <widget class="QGroupBox" name="Sensor_Data">
       <property name="title">
-       <string>Claw and Sensor Data</string>
+       <string>Sensor Status</string>
       </property>
       <property name="flat">
        <bool>false</bool>
