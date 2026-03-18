@@ -121,7 +121,7 @@ class ControlThread:
         sway = -ax(2)
         HEAVE_UP_GAIN = 1.25  # tune: 1.15–1.35
 
-        heave = -ax(3)
+        heave = ax(3)
 
         if heave > 0:
             heave *= HEAVE_UP_GAIN
@@ -131,7 +131,7 @@ class ControlThread:
         x_held = len(self.buttons) > 0 and self.buttons[0] == 1
         if not x_held:
             surge = ax(0)
-            yaw = -ax(1)
+            yaw = ax(1)
             roll = pitch = 0.0
         else:
             surge = yaw = 0.0
@@ -171,10 +171,10 @@ class ControlThread:
         #     "IFR": ctrl["heave"] + ctrl["roll"] + ctrl["pitch"],
         # }
         z = {
-            "IFL": ctrl["heave"] + ctrl["roll"] + ctrl["pitch"],
-            "IBL": ctrl["heave"] + ctrl["roll"] + ctrl["pitch"],
-            "IBR": ctrl["heave"] - ctrl["roll"] - ctrl["pitch"],
-            "IFR": ctrl["heave"] - ctrl["roll"] - ctrl["pitch"],
+            "IFL": (ctrl["heave"] + ctrl["roll"] + ctrl["pitch"]),
+            "IBL": -1*(ctrl["heave"] + ctrl["roll"] + ctrl["pitch"]),
+            "IBR": (ctrl["heave"] - ctrl["roll"] - ctrl["pitch"]),
+            "IFR": (ctrl["heave"] - ctrl["roll"] - ctrl["pitch"]),
         }
 
         max_xy = max(abs(v) for v in xy.values())

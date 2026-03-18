@@ -40,8 +40,6 @@ class SensorClient(QObject):
             except Exception as e:
                 print(f"[SensorClient] Send error: {e}")
 
-    # ── Private ──────────────────────────────────────────────────────────
-
     def _run_loop(self):
         while self.running:
             print(f"[SensorClient] Connecting to {self.ws_url}…")
