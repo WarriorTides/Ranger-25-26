@@ -1,12 +1,153 @@
+# # import socket
+# # import struct
+# # import cv2
+# # import numpy as np
+# # import threading
+# # import queue
+# # import time
+
+# # from PyQt6.QtCore import QObject, pyqtSignal, Qt
+
+# # HEADER_FMT = ">BI"
+# # HEADER_SIZE = struct.calcsize(HEADER_FMT)
+
+
+# # class _PerCamDecoder(threading.Thread):
+# #     """One decode thread per camera — frames never mix between cameras."""
+
+# #     def __init__(self, cam_id: int, on_frame):
+# #         super().__init__(daemon=True, name=f"DecodeThread-cam{cam_id}")
+# #         self.cam_id = cam_id
+# #         self._on_frame = on_frame          # callable(cam_id, frame_rgb)
+# #         self._queue: queue.Queue = queue.Queue(maxsize=2)
+# #         self._running = True
+
+# #     def enqueue(self, jpg_bytes: bytes):
+# #         try:
+# #             self._queue.put_nowait(jpg_bytes)
+# #         except queue.Full:
+# #             # drop oldest, push newest
+# #             try:
+# #                 self._queue.get_nowait()
+# #             except queue.Empty:
+# #                 pass
+# #             try:
+# #                 self._queue.put_nowait(jpg_bytes)
+# #             except queue.Full:
+# #                 pass
+
+# #     def run(self):
+# #         while self._running:
+# #             try:
+# #                 jpg_bytes = self._queue.get(timeout=0.1)
+# #             except queue.Empty:
+# #                 continue
+
+# #             if len(jpg_bytes) < 100:
+# #                 continue
+
+# #             try:
+# #                 nparr = np.frombuffer(jpg_bytes, np.uint8)
+# #                 frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+# #                 if frame is not None:
+# #                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+# #                     self._on_frame(self.cam_id, frame_rgb)
+# #             except Exception as e:
+# #                 print(f"[CamReceiver] Decode error cam {self.cam_id}: {e}")
+
+# #     def stop(self):
+# #         self._running = False
+
+
+# # class CameraReceiver(QObject):
+# #     frame_received = pyqtSignal(int, object)
+
+# #     SOCKET_RCVBUF = 2 * 1024 * 1024
+# #     READ_SIZE = 65536
+
+# #     def __init__(self, ports=None):
+# #         super().__init__()
+# #         self.ports = ports or [5005, 5006, 5007]
+# #         self.sockets: list[socket.socket] = []
+
+# #         # One decoder per camera (keyed by cam_id = port index + 1)
+# #         self._decoders: dict[int, _PerCamDecoder] = {}
+# #         for i, port in enumerate(self.ports):
+# #             cam_id = i + 1
+# #             decoder = _PerCamDecoder(cam_id, self._on_frame_ready)
+# #             decoder.start()
+# #             self._decoders[cam_id] = decoder
+
+# #             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# #             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+# #             sock.setsockopt(socket.SOL_SOCKET,
+# #                             socket.SO_RCVBUF, self.SOCKET_RCVBUF)
+# #             sock.bind(("0.0.0.0", port))
+# #             sock.setblocking(False)
+# #             self.sockets.append(sock)
+# #             print(f"[CamReceiver] Listening on UDP port {port} (cam {cam_id})")
+
+# #         print("[CamReceiver] Per-camera decode threads started")
+
+# #     # Called from background decode threads — must be thread-safe.
+# #     # PyQt6 queued signal emission is thread-safe.
+# #     def _on_frame_ready(self, cam_id: int, frame_rgb):
+# #         self.frame_received.emit(cam_id, frame_rgb)
+
+# #     def poll(self):
+# #         """Drain sockets — called from QTimer on main thread."""
+# #         for i, sock in enumerate(self.sockets):
+# #             for _ in range(20):
+# #                 try:
+# #                     packet, _ = sock.recvfrom(self.READ_SIZE)
+# #                 except BlockingIOError:
+# #                     break
+# #                 except OSError:
+# #                     break
+# #                 except Exception as e:
+# #                     print(
+# #                         f"[CamReceiver] Socket error port {self.ports[i]}: {e}")
+# #                     break
+
+# #                 if len(packet) < HEADER_SIZE:
+# #                     continue
+
+# #                 cam_id, payload_len = struct.unpack(
+# #                     HEADER_FMT, packet[:HEADER_SIZE])
+# #                 jpg_bytes = packet[HEADER_SIZE:]
+
+# #                 if len(jpg_bytes) != payload_len:
+# #                     continue
+
+# #                 decoder = self._decoders.get(cam_id)
+# #                 if decoder:
+# #                     decoder.enqueue(jpg_bytes)
+
+# #     def stop(self):
+# #         for decoder in self._decoders.values():
+# #             decoder.stop()
+# #         for sock in self.sockets:
+# #             try:
+# #                 sock.close()
+# #             except Exception:
+# #                 pass
+# #         print("[CamReceiver] Closed")
+
+# #     # Legacy alias used in MainWindow.closeEvent
+# #     def close(self):
+# #         self.stop()
+
+
 # import socket
 # import struct
+# import select
 # import cv2
 # import numpy as np
 # import threading
 # import queue
 # import time
 
-# from PyQt6.QtCore import QObject, pyqtSignal, Qt
+# from PyQt6.QtCore import QObject, pyqtSignal
 
 # HEADER_FMT = ">BI"
 # HEADER_SIZE = struct.calcsize(HEADER_FMT)
@@ -18,7 +159,7 @@
 #     def __init__(self, cam_id: int, on_frame):
 #         super().__init__(daemon=True, name=f"DecodeThread-cam{cam_id}")
 #         self.cam_id = cam_id
-#         self._on_frame = on_frame          # callable(cam_id, frame_rgb)
+#         self._on_frame = on_frame
 #         self._queue: queue.Queue = queue.Queue(maxsize=2)
 #         self._running = True
 
@@ -26,7 +167,6 @@
 #         try:
 #             self._queue.put_nowait(jpg_bytes)
 #         except queue.Full:
-#             # drop oldest, push newest
 #             try:
 #                 self._queue.get_nowait()
 #             except queue.Empty:
@@ -59,18 +199,75 @@
 #         self._running = False
 
 
+# class _SocketPollThread(threading.Thread):
+#     """
+#     Dedicated background thread that drains all UDP sockets using select().
+#     Keeps blocking I/O entirely off the Qt main thread, eliminating the
+#     primary source of lag and freeze.
+#     """
+
+#     def __init__(self, sockets: list, ports: list, decoders: dict):
+#         super().__init__(daemon=True, name="SocketPollThread")
+#         self._sockets = sockets
+#         self._ports = ports
+#         self._decoders = decoders
+#         self._running = True
+
+#     def run(self):
+#         while self._running:
+#             try:
+#                 # Block until at least one socket has data, timeout=0.05s
+#                 # so the loop can check _running periodically.
+#                 readable, _, _ = select.select(self._sockets, [], [], 0.05)
+#             except Exception as e:
+#                 print(f"[CamReceiver] select error: {e}")
+#                 time.sleep(0.05)
+#                 continue
+
+#             for sock in readable:
+#                 # Drain up to 5 packets per ready socket per wakeup.
+#                 # Smaller than before (was 20) — prevents one socket
+#                 # monopolising the loop when there is a burst.
+#                 for _ in range(5):
+#                     try:
+#                         packet, _ = sock.recvfrom(65536)
+#                     except BlockingIOError:
+#                         break
+#                     except OSError:
+#                         break
+#                     except Exception as e:
+#                         print(f"[CamReceiver] recv error: {e}")
+#                         break
+
+#                     if len(packet) < HEADER_SIZE:
+#                         continue
+
+#                     cam_id, payload_len = struct.unpack(
+#                         HEADER_FMT, packet[:HEADER_SIZE]
+#                     )
+#                     jpg_bytes = packet[HEADER_SIZE:]
+
+#                     if len(jpg_bytes) != payload_len:
+#                         continue
+
+#                     decoder = self._decoders.get(cam_id)
+#                     if decoder:
+#                         decoder.enqueue(jpg_bytes)
+
+#     def stop(self):
+#         self._running = False
+
+
 # class CameraReceiver(QObject):
 #     frame_received = pyqtSignal(int, object)
 
 #     SOCKET_RCVBUF = 2 * 1024 * 1024
-#     READ_SIZE = 65536
 
 #     def __init__(self, ports=None):
 #         super().__init__()
 #         self.ports = ports or [5005, 5006, 5007]
 #         self.sockets: list[socket.socket] = []
 
-#         # One decoder per camera (keyed by cam_id = port index + 1)
 #         self._decoders: dict[int, _PerCamDecoder] = {}
 #         for i, port in enumerate(self.ports):
 #             cam_id = i + 1
@@ -87,43 +284,26 @@
 #             self.sockets.append(sock)
 #             print(f"[CamReceiver] Listening on UDP port {port} (cam {cam_id})")
 
-#         print("[CamReceiver] Per-camera decode threads started")
+#         # Single background thread owns all socket I/O — Qt main thread
+#         # no longer touches sockets at all.
+#         self._poll_thread = _SocketPollThread(
+#             self.sockets, self.ports, self._decoders
+#         )
+#         self._poll_thread.start()
+#         print("[CamReceiver] Background socket poll thread + decode threads started")
 
-#     # Called from background decode threads — must be thread-safe.
-#     # PyQt6 queued signal emission is thread-safe.
 #     def _on_frame_ready(self, cam_id: int, frame_rgb):
+#         # Called from decode threads — queued signal emission is thread-safe.
 #         self.frame_received.emit(cam_id, frame_rgb)
 
+#     # poll() is now a no-op kept for backward compatibility with MainWindow's
+#     # QTimer. You can remove the QTimer entirely, or leave it — it does nothing.
 #     def poll(self):
-#         """Drain sockets — called from QTimer on main thread."""
-#         for i, sock in enumerate(self.sockets):
-#             for _ in range(20):
-#                 try:
-#                     packet, _ = sock.recvfrom(self.READ_SIZE)
-#                 except BlockingIOError:
-#                     break
-#                 except OSError:
-#                     break
-#                 except Exception as e:
-#                     print(
-#                         f"[CamReceiver] Socket error port {self.ports[i]}: {e}")
-#                     break
-
-#                 if len(packet) < HEADER_SIZE:
-#                     continue
-
-#                 cam_id, payload_len = struct.unpack(
-#                     HEADER_FMT, packet[:HEADER_SIZE])
-#                 jpg_bytes = packet[HEADER_SIZE:]
-
-#                 if len(jpg_bytes) != payload_len:
-#                     continue
-
-#                 decoder = self._decoders.get(cam_id)
-#                 if decoder:
-#                     decoder.enqueue(jpg_bytes)
+#         pass
 
 #     def stop(self):
+#         self._poll_thread.stop()
+#         self._poll_thread.join(timeout=1.0)
 #         for decoder in self._decoders.values():
 #             decoder.stop()
 #         for sock in self.sockets:
@@ -133,108 +313,140 @@
 #                 pass
 #         print("[CamReceiver] Closed")
 
-#     # Legacy alias used in MainWindow.closeEvent
 #     def close(self):
 #         self.stop()
 
 
+# #-------#
+
 import socket
 import struct
-import threading
+import select
 import cv2
 import numpy as np
+import threading
+import queue
+import time
 
-from PyQt6.QtCore import QObject, pyqtSignal, QSize
+from PyQt6.QtCore import QObject, pyqtSignal
 
 HEADER_FMT = ">BI"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
 
-# Target display size — decode thread resizes to this so the main thread
-# never touches cv2.resize.  MainWindow still letterboxes via Qt if the
-# label is larger, but that path is almost never hit at 320×240.
-_DISPLAY_W = 320
-_DISPLAY_H = 240
-
 
 class _PerCamDecoder(threading.Thread):
-    """
-    One decode thread per camera.
+    """One decode thread per camera — frames never mix between cameras."""
 
-    FIX #1 – single-slot "latest frame" instead of a bounded queue.
-              Old code queued up to 2 frames and dropped-oldest on overflow,
-              which caused stuttering bursts.  Now we always throw away the
-              pending frame and replace it with the newest one, so we NEVER
-              accumulate lag.
+    MIN_INTERVAL = 1 / 25  # cap at 25 fps per camera
 
-    FIX #4 – resize happens here, not on the main thread.
-    """
-
-    def __init__(self, cam_id: int, on_frame, display_size: tuple[int, int]):
+    def __init__(self, cam_id: int, on_frame):
         super().__init__(daemon=True, name=f"DecodeThread-cam{cam_id}")
         self.cam_id = cam_id
         self._on_frame = on_frame
-        self._display_w, self._display_h = display_size
-
-        # Single-slot latest-frame store
-        self._latest: bytes | None = None
-        self._lock = threading.Lock()
-        self._event = threading.Event()
+        self._queue: queue.Queue = queue.Queue(maxsize=2)
         self._running = True
 
-    # Called from the network/poll thread — always keeps only the newest JPEG.
     def enqueue(self, jpg_bytes: bytes):
-        with self._lock:
-            self._latest = jpg_bytes   # overwrites whatever was waiting
-        self._event.set()
+        try:
+            self._queue.put_nowait(jpg_bytes)
+        except queue.Full:
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self._queue.put_nowait(jpg_bytes)
+            except queue.Full:
+                pass
 
     def run(self):
+        self._last_emit = 0.0
         while self._running:
-            signalled = self._event.wait(timeout=0.1)
-            if not signalled:
+            try:
+                jpg_bytes = self._queue.get(timeout=0.1)
+            except queue.Empty:
                 continue
-            self._event.clear()
 
-            with self._lock:
-                data = self._latest
-                self._latest = None
-
-            if not data or len(data) < 100:
+            if len(jpg_bytes) < 100:
                 continue
 
             try:
-                nparr = np.frombuffer(data, np.uint8)
+                nparr = np.frombuffer(jpg_bytes, np.uint8)
                 frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                if frame is None:
-                    continue
-
-                # FIX #4 — resize on this thread, not the UI thread
-                fh, fw = frame.shape[:2]
-                scale = min(self._display_w / fw, self._display_h / fh)
-                new_w = max(1, int(fw * scale))
-                new_h = max(1, int(fh * scale))
-                if new_w != fw or new_h != fh:
-                    frame = cv2.resize(
-                        frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR
-                    )
-
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                self._on_frame(self.cam_id, frame_rgb)
-
+                if frame is not None:
+                    now = time.monotonic()
+                    if now - self._last_emit < self.MIN_INTERVAL:
+                        continue  # drop frame, too soon
+                    self._last_emit = now
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    self._on_frame(self.cam_id, frame_rgb)
             except Exception as e:
                 print(f"[CamReceiver] Decode error cam {self.cam_id}: {e}")
 
     def stop(self):
         self._running = False
-        self._event.set()   # unblock the wait so the thread exits cleanly
+
+
+class _SocketPollThread(threading.Thread):
+    """
+    Dedicated background thread that drains all UDP sockets using select().
+    Keeps blocking I/O entirely off the Qt main thread, eliminating the
+    primary source of lag and freeze.
+    """
+
+    def __init__(self, sockets: list, ports: list, decoders: dict):
+        super().__init__(daemon=True, name="SocketPollThread")
+        self._sockets = sockets
+        self._ports = ports
+        self._decoders = decoders
+        self._running = True
+
+    def run(self):
+        while self._running:
+            try:
+                readable, _, _ = select.select(self._sockets, [], [], 0.05)
+            except Exception as e:
+                print(f"[CamReceiver] select error: {e}")
+                time.sleep(0.05)
+                continue
+
+            for sock in readable:
+                for _ in range(5):
+                    try:
+                        packet, _ = sock.recvfrom(65536)
+                    except BlockingIOError:
+                        break
+                    except OSError:
+                        break
+                    except Exception as e:
+                        print(f"[CamReceiver] recv error: {e}")
+                        break
+
+                    if len(packet) < HEADER_SIZE:
+                        continue
+
+                    cam_id, payload_len = struct.unpack(
+                        HEADER_FMT, packet[:HEADER_SIZE]
+                    )
+                    jpg_bytes = packet[HEADER_SIZE:]
+
+                    if len(jpg_bytes) != payload_len:
+                        continue
+
+                    decoder = self._decoders.get(cam_id)
+                    if decoder:
+                        decoder.enqueue(jpg_bytes)
+
+    def stop(self):
+        self._running = False
 
 
 class CameraReceiver(QObject):
-    # Emits (cam_id, frame_rgb_ndarray) — already resized to display_size
     frame_received = pyqtSignal(int, object)
 
-    SOCKET_RCVBUF = 4 * 1024 * 1024   # doubled from original
+    SOCKET_RCVBUF = 2 * 1024 * 1024
 
-    def __init__(self, ports=None, display_size: tuple[int, int] = (_DISPLAY_W, _DISPLAY_H)):
+    def __init__(self, ports=None):
         super().__init__()
         self.ports = ports or [5005, 5006, 5007]
         self.sockets: list[socket.socket] = []
@@ -242,8 +454,7 @@ class CameraReceiver(QObject):
         self._decoders: dict[int, _PerCamDecoder] = {}
         for i, port in enumerate(self.ports):
             cam_id = i + 1
-            decoder = _PerCamDecoder(
-                cam_id, self._on_frame_ready, display_size)
+            decoder = _PerCamDecoder(cam_id, self._on_frame_ready)
             decoder.start()
             self._decoders[cam_id] = decoder
 
@@ -256,49 +467,21 @@ class CameraReceiver(QObject):
             self.sockets.append(sock)
             print(f"[CamReceiver] Listening on UDP port {port} (cam {cam_id})")
 
-        print("[CamReceiver] Per-camera decode threads started")
+        self._poll_thread = _SocketPollThread(
+            self.sockets, self.ports, self._decoders
+        )
+        self._poll_thread.start()
+        print("[CamReceiver] Background socket poll thread + decode threads started")
 
     def _on_frame_ready(self, cam_id: int, frame_rgb):
-        # Called from decoder threads — PyQt6 queued signal emission is thread-safe
         self.frame_received.emit(cam_id, frame_rgb)
 
     def poll(self):
-        """
-        Drain all sockets — called from QTimer on main thread.
-
-        FIX #3 — no artificial packet-count cap.  We loop until the OS
-                  returns BlockingIOError, meaning the buffer is empty.
-                  Previously capped at 20 packets which could leave stale
-                  frames sitting in the OS buffer adding latency.
-        """
-        for i, sock in enumerate(self.sockets):
-            while True:
-                try:
-                    packet, _ = sock.recvfrom(65536)
-                except BlockingIOError:
-                    break
-                except OSError:
-                    break
-                except Exception as e:
-                    print(
-                        f"[CamReceiver] Socket error port {self.ports[i]}: {e}")
-                    break
-
-                if len(packet) < HEADER_SIZE:
-                    continue
-
-                cam_id, payload_len = struct.unpack(
-                    HEADER_FMT, packet[:HEADER_SIZE])
-                jpg_bytes = packet[HEADER_SIZE:]
-
-                if len(jpg_bytes) != payload_len:
-                    continue
-
-                decoder = self._decoders.get(cam_id)
-                if decoder:
-                    decoder.enqueue(jpg_bytes)
+        pass  # no-op — kept for MainWindow QTimer compatibility
 
     def stop(self):
+        self._poll_thread.stop()
+        self._poll_thread.join(timeout=1.0)
         for decoder in self._decoders.values():
             decoder.stop()
         for sock in self.sockets:
