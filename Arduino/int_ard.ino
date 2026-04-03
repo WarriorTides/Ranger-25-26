@@ -13,7 +13,8 @@ const int INCREMENT = 30;
 int angleClaw1 = 0;
 int angleClaw1Rot = 0;
 int angleClaw2 = 0;
-int angleClaw2Rot = 0;
+int angleClaw2Rot = 0;  
+
 
 Servo claw1Servo;
 Servo claw1Rot;

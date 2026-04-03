@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import glob
 
-TEST_IMAGE_PATH = "/Users/kashishkapoor/Ranger-25-26/Image_Rec/pic.png"
+TEST_IMAGE_PATH = "/Users/kashishkapoor/Ranger-25-26/Image_Rec/Screenshot 2026-04-03 at 3.54.04 PM.png"
 DATASET_FOLDER = "/Users/kashishkapoor/Ranger-25-26/Image_Rec/dataset/*.png"
 
 THRESHOLD = 0.35  # -----
@@ -128,9 +128,9 @@ if all_boxes:
 
     for i in indices:
         x, y, w, h = all_boxes[i]
-        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.rectangle(img, (x, y), (x + w, y + h), (203, 192, 255), 2)
         cv2.putText(img, f"{all_scores[i]:.2f}", (x, y - 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (203, 192, 255), 1)
 
 if count == 0:
     print("Template matching found 0 — trying ORB feature matching...")
@@ -142,7 +142,7 @@ print(f"  TOTAL CRABS DETECTEDDD!!--better be right bro: {count}")
 print(f"{'='*30}\n")
 
 cv2.putText(img, f"Crabs: {count}", (30, 70),
-            cv2.FONT_HERSHEY_SIMPLEX, 2.5, (0, 255, 0), 4)
+            cv2.FONT_HERSHEY_SIMPLEX, 2.5, (203, 192, 255), 4)
 cv2.imshow("Crab Detection", img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()

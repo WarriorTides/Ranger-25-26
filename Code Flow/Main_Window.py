@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
         fh, fw = frame_rgb.shape[:2]
 
         # Letterbox-scale the frame to fit the label exactly once per
-        # stable label size, avoiding per-frame geometry reads.
+        # stable label size, av oiding per-frame geometry reads.
         scale = min(lw / fw, lh / fh)
         new_w = max(1, int(fw * scale))
         new_h = max(1, int(fh * scale))
