@@ -63,7 +63,7 @@ def calculate_length():
         print(f"Length: {length:.2f} cm")
 
 
-path = "./image.png"
+path = "/Users/kashishkapoor/Ranger-25-26/Measure_Object_Size/Screenshot 2026-04-03 at 4.20.41 PM.png"
 image = cv2.imread(path)
 cv2.imshow("Image", image)
 
