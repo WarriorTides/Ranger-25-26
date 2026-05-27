@@ -1,7 +1,8 @@
 """
 Key bindings:
-  C  → start recording camera 1
-  S  → stop  recording
+  C      → start recording camera 1
+  S      → stop  recording
+  1/2/3  → boost camera 1/2/3 to high-res for 5 seconds
 """
 
 import sys
@@ -19,6 +20,7 @@ from Sensor_Client import SensorClient
 from Cam_Recorder import CameraRecorder
 from Control_Thread import ControlThread
 from Sensor_Websocket_Thread import SensorWebSocketThread
+from boost import BoostController
 
 _plugin_path = os.path.join(
     os.path.dirname(PyQt6.__file__), "Qt6", "plugins", "platforms"
@@ -27,6 +29,8 @@ os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", _plugin_path)
 
 UI_FILE = "/Users/kashishkapoor/Ranger-25-26/Main_Flow/Mate_ROV.ui"
 
+# Cache label sizes after the window is shown to avoid reading
+# unstable geometry during layout passes.
 _LABEL_SIZE_CACHE: dict[int, QSize] = {}
 
 
@@ -36,6 +40,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         uic.loadUi(UI_FILE, self)
 
+        # Ensure key presses always reach this window
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
         self._setup_cameras()
         self._setup_sensors()
         self._setup_control()
@@ -44,13 +51,16 @@ class MainWindow(QMainWindow):
         print("  ROV CONTROL SYSTEM READY")
         print("  Cameras : 3 feeds on ports 5005-5007")
         print("  Record  : C = start  |  S = stop")
+        print("  Boost   : 1 / 2 / 3 = high-res cam for 5s")
         print("  Sensors : auto-reconnect WebSocket")
         print("  Control : joystick @ 20 Hz")
         print("=" * 52 + "\n")
 
     def _setup_cameras(self):
         for label in [self.Camera_Feed_1, self.Camera_Feed_2, self.Camera_Feed_3]:
+            # Never let the label scale its own contents — we do it manually
             label.setScaledContents(False)
+            # Expanding but with a hard minimum so layout doesn't collapse it
             label.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )
@@ -65,6 +75,9 @@ class MainWindow(QMainWindow):
         self.cam_timer.start(16)
 
         self.recorder = CameraRecorder(frame_size=(320, 240))
+
+        # BoostController — sends boost/drop commands to the Pi
+        self.boost_ctrl = BoostController(pi_ip="192.168.1.151")
 
         # Invalidate the label-size cache whenever the window is resized so
         # the next frame recalculates the scaled pixmap at the correct size.
@@ -104,14 +117,20 @@ class MainWindow(QMainWindow):
         _LABEL_SIZE_CACHE.clear()
         self._resize_pending = False
 
+    # ------------------------------------------------------------------
+    # Camera frame handler
+    # ------------------------------------------------------------------
     def update_camera(self, cam_id: int, frame_rgb):
         label = self._label_for(cam_id)
         if label is None:
             return
 
+        # Use cached label size; only re-read from the widget when the
+        # cache is empty (startup or after a resize settled).
         if cam_id not in _LABEL_SIZE_CACHE:
             lw, lh = label.width(), label.height()
             if lw < 1 or lh < 1:
+                # Widget not laid out yet — skip this frame
                 return
             _LABEL_SIZE_CACHE[cam_id] = QSize(lw, lh)
 
@@ -120,6 +139,8 @@ class MainWindow(QMainWindow):
 
         fh, fw = frame_rgb.shape[:2]
 
+        # Letterbox-scale the frame to fit the label exactly once per
+        # stable label size, avoiding per-frame geometry reads.
         scale = min(lw / fw, lh / fh)
         new_w = max(1, int(fw * scale))
         new_h = max(1, int(fh * scale))
@@ -148,13 +169,28 @@ class MainWindow(QMainWindow):
         self.Humidity_Data.setText(f"Humidity: {humidity} %")
         self.Current_Data.setText(f"Current: {current} A")
 
+    # ------------------------------------------------------------------
+    # Key bindings
+    # ------------------------------------------------------------------
     def keyPressEvent(self, event):
         key = event.key()
         if key == Qt.Key.Key_C:
             self.recorder.start_recording()
         elif key == Qt.Key.Key_S:
             self.recorder.stop_recording()
+        elif key == Qt.Key.Key_1:
+            self.boost_ctrl.boost(1)
+            print("[Main] Boost → cam 1")
+        elif key == Qt.Key.Key_2:
+            self.boost_ctrl.boost(2)
+            print("[Main] Boost → cam 2")
+        elif key == Qt.Key.Key_3:
+            self.boost_ctrl.boost(3)
+            print("[Main] Boost → cam 3")
 
+    # ------------------------------------------------------------------
+    # Clean shutdown
+    # ------------------------------------------------------------------
     def closeEvent(self, event):
         print("\n[Main] Shutting down…")
         for attr in ("control_timer", "cam_timer"):
@@ -169,6 +205,9 @@ class MainWindow(QMainWindow):
         rec = getattr(self, "recorder", None)
         if rec:
             rec.stop_recording()
+        boost = getattr(self, "boost_ctrl", None)
+        if boost:
+            boost.close()
         print("[Main] Shutdown complete")
         event.accept()
 
