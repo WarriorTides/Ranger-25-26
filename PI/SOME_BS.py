@@ -12,7 +12,7 @@ TARGET_FPS = 15
 FRAME_W = 320
 FRAME_H = 240
 # 40-60 is plenty for FPV; cuts packet size nearly in half
-JPEG_QUALITY = 50
+JPEG_QUALITY = 40
 HEADER_FMT = ">BI"   # unsigned char + unsigned int
 HEADER_SIZE = struct.calcsize(HEADER_FMT)   # 5 bytes
 
@@ -86,7 +86,7 @@ def main():
         t = threading.Thread(target=camera_loop, args=(idx, dev), daemon=True)
         t.start()
         threads.append(t)
-        time.sleep(0.1)   # stagger starts slightly to reduce burst at t=0
+        time.sleep(0.1)  
 
     print(f"Streaming {len(CAMERA_IDS)} cameras at {TARGET_FPS}fps "
           f"({FRAME_W}x{FRAME_H}, JPEG q={JPEG_QUALITY}). Ctrl+C to stop.")

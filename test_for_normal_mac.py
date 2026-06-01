@@ -8,7 +8,7 @@ for node in video_nodes:
     cap = cv2.VideoCapture(node)
     ret, frame = cap.read()
     if ret:
-        print(f"{node} works!")
+        print(f"{node} works!!!!")
         working_cams.append(node)
     cap.release()
 

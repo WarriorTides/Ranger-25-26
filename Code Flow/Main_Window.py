@@ -4,7 +4,7 @@ Key bindings:
   S  → stop  recording
 """
 
-import sys
+import   sys
 import os
 import cv2
 import PyQt6
@@ -17,7 +17,7 @@ from PyQt6.QtGui import QImage, QPixmap
 from Camreceiver import CameraReceiver
 from Sensor_Client import SensorClient
 from Cam_Recorder import CameraRecorder
-from Control_Thread import ControlThread
+from Control_Thread_Krishna import ControlThread
 from Sensor_Websocket_Thread import SensorWebSocketThread
 
 _plugin_path = os.path.join(
@@ -25,7 +25,7 @@ _plugin_path = os.path.join(
 )
 os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", _plugin_path)
 
-UI_FILE = "/Users/kashishkapoor/Ranger-25-26/Main_Flow/Mate_ROV.ui"
+UI_FILE = "/Users/mate/Ranger-25-26/Main_Flow/Mate_ROV.ui"
 
 # Cache label sizes after the window is shown to avoid reading
 # unstable geometry during layout passes.
@@ -55,6 +55,7 @@ class MainWindow(QMainWindow):
             # Never let the label scale its own contents — we do it manually
             label.setScaledContents(False)
             # Expanding but with a hard minimum so layout doesn't collapse it
+            
             label.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )

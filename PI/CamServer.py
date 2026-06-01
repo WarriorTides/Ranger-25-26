@@ -6,7 +6,7 @@ import struct
 import time
 import threading
 
-PC_IP = "192.168.1.119"
+PC_IP = "192.168.1.154"
 PORTS = [5005, 5006, 5007]
 CAMERA_IDS = [0, 4, 8]
 TARGET_FPS = 15
