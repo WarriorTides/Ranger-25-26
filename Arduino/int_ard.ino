@@ -6,14 +6,15 @@ Servo thrusters[THRUSTER_COUNT];
 const byte thrusterPins[THRUSTER_COUNT] = {29, 27, 25, 23, 19, 17, 15, 13};
 const int CLAW1_SERVO_PIN = 6;
 const int CLAW1_ROT_PIN   = 8;
-const int CLAW2_SERVO_PIN = 32;
+const int CLAW2_SERVO_PIN =  32;
 const int CLAW2_ROT_PIN   = 34;
 const int INCREMENT = 30;
 
 int angleClaw1 = 0;
 int angleClaw1Rot = 0;
 int angleClaw2 = 0;
-int angleClaw2Rot = 0;
+int angleClaw2Rot = 0;  
+
 
 Servo claw1Servo;
 Servo claw1Rot;
